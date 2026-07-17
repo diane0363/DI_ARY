@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DI_ARY · 몽글몽글 나의 일기장</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cream: '#FFF9EF',
+            ink:   '#5A4A3C',
+            butter:{ light:'#FFF1C2', DEFAULT:'#FFD84D', deep:'#F7B500' },
+            blush: { light:'#FFE1E8', DEFAULT:'#FFA9BE', deep:'#F5738C' },
+            sky:   { light:'#DCF1FA', DEFAULT:'#8FD3EF', deep:'#4FB3DB' },
+            mint:  { light:'#DFF5E6', DEFAULT:'#A6E3B8', deep:'#5FC17B' },
+            cocoa: { DEFAULT:'#2B2320', soft:'#39302B', line:'#4A3F38' }
+          },
+          fontFamily: {
+            hand: ['"Jua"','system-ui','sans-serif'],
+            round:['"Jua"','system-ui','sans-serif']
+          },
+          boxShadow: {
+            mong: '0 10px 24px -10px rgba(150,110,60,.35)',
+            pop:  '0 14px 34px -12px rgba(150,110,60,.45)'
+          },
+          keyframes: {
+            floaty:  { '0%,100%':{transform:'translateY(0) rotate(-4deg)'}, '50%':{transform:'translateY(-10px) rotate(4deg)'} },
+            floaty2: { '0%,100%':{transform:'translateY(0) rotate(6deg)'},  '50%':{transform:'translateY(-14px) rotate(-3deg)'} },
+            bob:     { '0%,100%':{transform:'translateY(0)'}, '50%':{transform:'translateY(-4px)'} },
+            popin:   { '0%':{transform:'scale(.94)',opacity:'0'}, '100%':{transform:'scale(1)',opacity:'1'} },
+            slideup: { '0%':{transform:'translateY(14px)',opacity:'0'}, '100%':{transform:'translateY(0)',opacity:'1'} },
+            wiggle:  { '0%,100%':{transform:'rotate(-3deg)'}, '50%':{transform:'rotate(3deg)'} }
+          },
+          animation: {
+            floaty:'floaty 6s ease-in-out infinite', floaty2:'floaty2 7s ease-in-out infinite',
+            bob:'bob 2.5s ease-in-out infinite', popin:'popin .2s ease-out',
+            slideup:'slideup .24s ease-out', wiggle:'wiggle .5s ease-in-out'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html{scroll-behavior:smooth}
+    body{font-family:'Jua',system-ui,sans-serif;}
+    .font-round,h1,h2,h3{font-family:'Jua',system-ui,sans-serif;}
+    .paper{
+      background-color:#FFF9EF;
+      background-image:radial-gradient(rgba(150,110,60,.10) 1.4px, transparent 1.4px);
+      background-size:22px 22px;
+    }
+    .dark .paper{
+      background-color:#2B2320;
+      background-image:radial-gradient(rgba(255,240,210,.06) 1.4px, transparent 1.4px);
+    }
+    .line-clamp-3{display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    /* 노트 줄무늬: 가로 룰(하늘색) + 왼쪽 마진선(핑크) */
+    .ruled{
+      font-size:18px;
+      line-height:32px;              /* 룰 주기(32px)와 정확히 일치 → 어긋남 방지 */
+      background-attachment:local;   /* 글자 스크롤 시 줄도 함께 이동 */
+      background-origin:border-box, content-box; /* 마진선=테두리 기준, 가로줄=글자 시작점 기준 */
+      background-image:
+        linear-gradient(to right, transparent 0, transparent 40px, rgba(245,115,140,.5) 40px, rgba(245,115,140,.5) 42px, transparent 42px),
+        repeating-linear-gradient(to bottom, transparent 0, transparent 30px, rgba(143,211,239,.6) 30px, rgba(143,211,239,.6) 31px, transparent 31px, transparent 32px);
+    }
+    .dark .ruled{
+      background-image:
+        linear-gradient(to right, transparent 0, transparent 40px, rgba(245,115,140,.42) 40px, rgba(245,115,140,.42) 42px, transparent 42px),
+        repeating-linear-gradient(to bottom, transparent 0, transparent 30px, rgba(143,211,239,.24) 30px, rgba(143,211,239,.24) 31px, transparent 31px, transparent 32px);
+    }
+    .no-scroll{overflow:hidden}
+    ::-webkit-scrollbar{width:12px;height:12px}
+    ::-webkit-scrollbar-thumb{background:#FFD84D;border:3px solid transparent;background-clip:content-box;border-radius:9999px}
+    .dark ::-webkit-scrollbar-thumb{background:#5FC17B;background-clip:content-box}
+    input::placeholder,textarea::placeholder{color:#c9b79f}
+    .dark input::placeholder,.dark textarea::placeholder{color:#6b5d50}
+  </style>
+</head>
+<body class="paper text-ink dark:text-cream min-h-screen antialiased text-[17px] leading-relaxed transition-colors overflow-x-hidden">
+
+  <!-- ===== floating doodles (deco) ===== -->
+  <div class="pointer-events-none fixed inset-0 -z-0 overflow-hidden">
+    <div class="absolute top-24 -left-4 w-16 opacity-70 animate-floaty" data-doodle="bird"></div>
+    <div class="absolute top-40 right-6 w-20 opacity-70 animate-floaty2" data-doodle="cloud"></div>
+    <div class="absolute bottom-24 left-8 w-12 opacity-60 animate-bob" data-doodle="paw"></div>
+    <div class="absolute top-1/2 right-2 w-10 opacity-60 animate-floaty" data-doodle="heart"></div>
+    <div class="absolute bottom-10 right-1/4 w-14 opacity-60 animate-floaty2" data-doodle="cloud"></div>
+  </div>
+
+  <!-- ===== Header ===== -->
+  <header class="sticky top-0 z-30 backdrop-blur-md bg-cream/80 dark:bg-cocoa/80 border-b-2 border-dashed border-butter-deep/40 dark:border-mint/25">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-[72px] flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 select-none">
+        <div class="w-11 h-11 rounded-2xl bg-butter grid place-items-center border-2 border-ink/70 shadow-mong animate-bob shrink-0" data-doodle="bird-badge"></div>
+        <div class="leading-none">
+          <h1 class="text-2xl text-ink dark:text-cream">DI_ARY</h1>
+          <p class="text-[13px] font-hand text-ink/50 dark:text-cream/50 mt-0.5">오늘의 나를 몽글몽글 기록하기 ✨</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="themeBtn" title="테마 전환"
+          class="w-11 h-11 grid place-items-center rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/60 hover:animate-wiggle transition">
+          <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-butter-deep"></i>
+          <i data-lucide="moon" class="w-5 h-5 block dark:hidden text-sky-deep"></i>
+        </button>
+        <button id="newBtn"
+          class="h-11 pl-3.5 pr-5 inline-flex items-center gap-1.5 rounded-2xl bg-blush text-ink text-lg font-round border-2 border-ink/70 shadow-mong hover:shadow-pop hover:-translate-y-0.5 transition active:translate-y-0 active:scale-95">
+          <i data-lucide="plus" class="w-5 h-5"></i><span class="hidden sm:inline">새 일기</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-9 relative z-10">
+
+    <!-- ===== Toolbar ===== -->
+    <section class="mb-6 space-y-4">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-ink/40"></i>
+          <input id="searchInput" type="text" placeholder="제목·내용·태그로 콩콩 찾기…"
+            class="w-full h-12 pl-11 pr-4 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/25 dark:border-cocoa-line focus:border-blush-deep focus:ring-4 focus:ring-blush/30 outline-none font-hand transition" />
+        </div>
+        <div class="relative">
+          <i data-lucide="arrow-up-down" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/40 pointer-events-none"></i>
+          <select id="sortSelect"
+            class="h-12 pl-9 pr-8 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/25 dark:border-cocoa-line focus:border-sky-deep outline-none font-hand cursor-pointer appearance-none">
+            <option value="new">최신순 🕐</option>
+            <option value="old">오래된순 📮</option>
+            <option value="mood">감정순 💛</option>
+          </select>
+        </div>
+      </div>
+      <div id="moodChips" class="flex flex-wrap gap-2"></div>
+    </section>
+
+    <!-- ===== Stats row ===== -->
+    <div id="statsRow" class="flex items-center justify-between mb-4 font-hand text-ink/60 dark:text-cream/60"></div>
+
+    <!-- ===== Feed ===== -->
+    <section id="feed" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></section>
+
+    <!-- ===== Empty / NoResult ===== -->
+    <div id="emptyState" class="hidden py-16 text-center">
+      <div class="relative inline-block mb-2">
+        <div class="w-40 mx-auto animate-bob" data-doodle="scene"></div>
+      </div>
+      <div class="relative inline-block bg-white dark:bg-cocoa-soft border-2 border-ink/60 rounded-3xl px-6 py-4 shadow-mong mt-2">
+        <span class="absolute -bottom-2 left-10 w-4 h-4 bg-white dark:bg-cocoa-soft border-b-2 border-r-2 border-ink/60 rotate-45"></span>
+        <p id="emptyTitle" class="text-xl text-ink dark:text-cream">아직 텅 비었어요</p>
+        <p id="emptyDesc" class="font-hand text-ink/55 dark:text-cream/55 mt-1">오른쪽 위 <b class="text-blush-deep">새 일기</b> 버튼으로 첫 페이지를 채워봐요!</p>
+      </div>
+      <div>
+        <button id="emptyCta"
+          class="mt-5 h-12 px-6 inline-flex items-center gap-2 rounded-2xl bg-butter text-ink text-lg font-round border-2 border-ink/70 shadow-mong hover:-translate-y-0.5 hover:shadow-pop transition active:scale-95">
+          <i data-lucide="pencil" class="w-5 h-5"></i>첫 일기 쓰기
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== Write/Edit Modal ===== -->
+  <div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="modal-backdrop fixed inset-0 bg-ink/40 backdrop-blur-sm"></div>
+    <div class="relative min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4 sm:py-8">
+      <div class="w-full sm:max-w-2xl bg-cream dark:bg-cocoa rounded-t-[2rem] sm:rounded-[2rem] border-2 border-ink/60 shadow-pop animate-slideup overflow-hidden">
+        <div class="sticky top-0 bg-cream dark:bg-cocoa px-6 pt-5 pb-3 flex items-center justify-between border-b-2 border-dashed border-ink/20 dark:border-cocoa-line">
+          <h2 id="modalTitle" class="text-xl text-ink dark:text-cream flex items-center gap-2"><span data-doodle="mini-bird" class="w-6 inline-block"></span>새 일기</h2>
+          <button class="modal-close w-10 h-10 grid place-items-center rounded-xl hover:bg-blush/25 transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form id="entryForm" class="p-6 space-y-5 font-hand">
+          <input type="hidden" id="entryId" />
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="sm:col-span-2">
+              <label class="block text-base text-ink/60 dark:text-cream/60 mb-1.5">✏️ 제목</label>
+              <input id="fTitle" type="text" required maxlength="60" placeholder="오늘을 한 줄로!"
+                class="w-full h-12 px-3.5 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/25 dark:border-cocoa-line focus:border-blush-deep outline-none text-lg" />
+            </div>
+            <div>
+              <label class="block text-base text-ink/60 dark:text-cream/60 mb-1.5">📅 날짜</label>
+              <input id="fDate" type="date" required
+                class="w-full h-12 px-3.5 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/25 dark:border-cocoa-line focus:border-sky-deep outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-base text-ink/60 dark:text-cream/60 mb-1.5">오늘 기분은 어때요?</label>
+            <div id="fMoods" class="grid grid-cols-5 gap-2"></div>
+          </div>
+          <div>
+            <label class="block text-base text-ink/60 dark:text-cream/60 mb-1.5">📖 내용</label>
+            <textarea id="fBody" rows="11" required placeholder="오늘 있었던 일을 조곤조곤 적어봐요…"
+              class="ruled w-full pl-14 pr-4 pt-2 pb-3 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/25 dark:border-cocoa-line focus:border-mint-deep outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-base text-ink/60 dark:text-cream/60 mb-1.5">🏷️ 태그 <span class="text-ink/35">(쉼표로 구분)</span></label>
+            <input id="fTags" type="text" placeholder="예: 일상, 회고, 산책"
+              class="w-full h-12 px-3.5 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/25 dark:border-cocoa-line focus:border-butter-deep outline-none" />
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="button" class="modal-close flex-1 h-12 rounded-2xl border-2 border-ink/40 bg-white dark:bg-cocoa-soft text-lg font-round hover:bg-blush/20 transition">취소</button>
+            <button type="submit" class="flex-1 h-12 rounded-2xl bg-mint text-ink text-lg font-round border-2 border-ink/70 shadow-mong hover:-translate-y-0.5 transition active:scale-95">저장하기 💌</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Detail (읽기) Modal ===== -->
+  <div id="detail" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="detail-backdrop fixed inset-0 bg-ink/40 backdrop-blur-sm"></div>
+    <div class="relative min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4 sm:py-8">
+      <div class="w-full sm:max-w-2xl bg-cream dark:bg-cocoa rounded-t-[2rem] sm:rounded-[2rem] border-2 border-ink/60 shadow-pop animate-slideup overflow-hidden">
+        <div class="sticky top-0 bg-cream dark:bg-cocoa px-6 pt-5 pb-3 flex items-center justify-between border-b-2 border-dashed border-ink/20 dark:border-cocoa-line">
+          <h2 class="text-xl text-ink dark:text-cream flex items-center gap-2"><span data-doodle="mini-bird" class="w-6 inline-block"></span>일기 자세히 보기</h2>
+          <button class="detail-close w-10 h-10 grid place-items-center rounded-xl hover:bg-blush/25 transition">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div id="detailBody" class="p-6 space-y-5 font-hand"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Delete Confirm ===== -->
+  <div id="confirm" class="hidden fixed inset-0 z-50">
+    <div class="confirm-backdrop absolute inset-0 bg-ink/40 backdrop-blur-sm"></div>
+    <div class="relative min-h-full flex items-center justify-center p-4">
+      <div class="w-full max-w-xs bg-cream dark:bg-cocoa rounded-3xl border-2 border-ink/60 shadow-pop p-6 text-center animate-popin">
+        <div class="w-16 mx-auto mb-1 animate-wiggle" data-doodle="cry"></div>
+        <p class="text-xl text-ink dark:text-cream">이 일기, 지울까요?</p>
+        <p class="font-hand text-ink/50 dark:text-cream/50 mt-1">한 번 지우면 다시 못 봐요 🥺</p>
+        <div class="flex gap-2 mt-5">
+          <button id="confirmCancel" class="flex-1 h-11 rounded-2xl border-2 border-ink/40 bg-white dark:bg-cocoa-soft font-round hover:bg-mint/25 transition">보관할래</button>
+          <button id="confirmOk" class="flex-1 h-11 rounded-2xl bg-blush-deep text-white font-round border-2 border-ink/50 shadow-mong hover:-translate-y-0.5 transition active:scale-95">지울래</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Toast ===== -->
+  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] pl-3 pr-5 py-3 rounded-2xl bg-ink text-cream text-lg font-round border-2 border-butter shadow-pop animate-slideup flex items-center gap-2">
+    <span data-doodle="mini-bird" class="w-6 inline-block"></span><span id="toastMsg"></span>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // ---------- Doodles (original cute SVGs — Snoopy/Woodstock 감성만 차용) ----------
+    const INK = '#5A4A3C';
+    const D = {
+      bird: `<svg viewBox="0 0 48 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 15 L14 6 M24 13 L24 4 M31 15 L34 6" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
+        <ellipse cx="24" cy="30" rx="13" ry="12" fill="#FFD84D" stroke="${INK}" stroke-width="2.4"/>
+        <path d="M11 30 q-6 2 -8 6 q6 1 9 -1" fill="#FFD84D" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>
+        <circle cx="20.5" cy="28" r="1.7" fill="${INK}"/><circle cx="27.5" cy="28" r="1.7" fill="${INK}"/>
+        <path d="M22 32 L24 35.5 L26 32 Z" fill="#FF9E3D" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M20 42 l-1 4 M28 42 l1 4" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+      cloud: `<svg viewBox="0 0 68 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 38 a11 11 0 0 1 1.5-21 a15 15 0 0 1 28 3 a10 10 0 0 1 6 18 Z" fill="#fff" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>
+        <circle cx="26" cy="30" r="1.6" fill="${INK}"/><circle cx="38" cy="30" r="1.6" fill="${INK}"/>
+        <path d="M29 34 q3 3 6 0" stroke="${INK}" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>`,
+      paw: `<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="22" cy="28" rx="11" ry="9" fill="#FFA9BE" stroke="${INK}" stroke-width="2.2"/>
+        <ellipse cx="9" cy="16" rx="4" ry="5" fill="#FFA9BE" stroke="${INK}" stroke-width="2"/>
+        <ellipse cx="18" cy="10" rx="4" ry="5.5" fill="#FFA9BE" stroke="${INK}" stroke-width="2"/>
+        <ellipse cx="28" cy="10" rx="4" ry="5.5" fill="#FFA9BE" stroke="${INK}" stroke-width="2"/>
+        <ellipse cx="36" cy="16" rx="4" ry="5" fill="#FFA9BE" stroke="${INK}" stroke-width="2"/></svg>`,
+      heart: `<svg viewBox="0 0 40 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 34 C4 22 6 8 14 8 c4 0 6 3 6 5 c0-2 2-5 6-5 c8 0 10 14 -6 21Z" fill="#FFA9BE" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/></svg>`,
+      'mini-bird': `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="14" rx="7" ry="6.5" fill="#FFD84D" stroke="${INK}" stroke-width="2"/>
+        <path d="M9 6 l-1.5-4 M12 5 l0-4 M15 6 l1.5-4" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="10" cy="13" r="1.2" fill="${INK}"/><circle cx="14" cy="13" r="1.2" fill="${INK}"/>
+        <path d="M11 15 l1 2 l1-2Z" fill="#FF9E3D" stroke="${INK}" stroke-width="1"/></svg>`,
+      cry: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="24" cy="26" rx="14" ry="13" fill="#FFD84D" stroke="${INK}" stroke-width="2.4"/>
+        <path d="M17 12 L14 4 M24 10 L24 2 M31 12 L34 4" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M18 23 q2-2 4 0 M26 23 q2-2 4 0" stroke="${INK}" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M20 30 q4 3 8 0" stroke="${INK}" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M16 26 q-2 4 0 6 q2-2 0-6Z" fill="#8FD3EF" stroke="${INK}" stroke-width="1.4"/></svg>`,
+      scene: `<svg viewBox="0 0 120 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="60" cy="88" rx="42" ry="6" fill="#000" opacity=".06"/>
+        <path d="M28 84 V56 L52 40 L76 56 V84 Z" fill="#fff" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M28 56 L52 40 L76 56" fill="#FFA9BE" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M43 84 V66 a9 9 0 0 1 18 0 V84Z" fill="#FFF1C2" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>
+        <g transform="translate(74 44)">
+          <path d="M6 6 L3 -2 M12 4 L12 -4 M18 6 L21 -2" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="12" cy="16" rx="10" ry="9" fill="#FFD84D" stroke="${INK}" stroke-width="2.4"/>
+          <circle cx="9" cy="15" r="1.4" fill="${INK}"/><circle cx="15" cy="15" r="1.4" fill="${INK}"/>
+          <path d="M10.5 18 L12 21 L13.5 18Z" fill="#FF9E3D" stroke="${INK}" stroke-width="1"/></g>
+        <path d="M92 30 l2 4 4 .5 -3 3 .8 4 -3.6-2 -3.6 2 .8-4 -3-3 4-.5Z" fill="#FFD84D" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/></svg>`
+    };
+    D['bird-badge'] = D['mini-bird'];
+    function paintDoodles(root=document) {
+      root.querySelectorAll('[data-doodle]').forEach(el => {
+        const svg = D[el.getAttribute('data-doodle')];
+        if (svg && !el.dataset.painted) { el.innerHTML = svg; el.dataset.painted = '1'; }
+      });
+    }
+
+    // ---------- Constants ----------
+    const KEY = 'di_ary_entries', THEME_KEY = 'di_ary_theme';
+    const MOODS = [
+      { id:'joy',   emoji:'😄', label:'기쁨', bg:'bg-butter-light dark:bg-butter/20', text:'text-butter-deep dark:text-butter', bd:'border-butter-deep' },
+      { id:'calm',  emoji:'😌', label:'평온', bg:'bg-mint-light dark:bg-mint/20',     text:'text-mint-deep dark:text-mint',     bd:'border-mint-deep' },
+      { id:'meh',   emoji:'😐', label:'보통', bg:'bg-black/5 dark:bg-white/10',        text:'text-ink/60 dark:text-cream/70',    bd:'border-ink/50' },
+      { id:'down',  emoji:'😔', label:'우울', bg:'bg-sky-light dark:bg-sky/20',        text:'text-sky-deep dark:text-sky',       bd:'border-sky-deep' },
+      { id:'angry', emoji:'😡', label:'화남', bg:'bg-blush-light dark:bg-blush/20',    text:'text-blush-deep dark:text-blush',   bd:'border-blush-deep' },
+    ];
+    const moodMap = Object.fromEntries(MOODS.map(m => [m.id, m]));
+    const ROTS = ['-rotate-1','rotate-1','-rotate-2','rotate-2','rotate-0'];
+
+    // ---------- State ----------
+    let diaries = load();
+    let filters = { q:'', mood:'all', sort:'new' };
+    let pendingDelete = null, selectedMood = 'calm', detailId = null;
+
+    // ---------- Persistence ----------
+    function load() {
+      try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+      const seed = seedData(); localStorage.setItem(KEY, JSON.stringify(seed)); return seed;
+    }
+    function save() { localStorage.setItem(KEY, JSON.stringify(diaries)); }
+    function seedData() {
+      const d = (o) => { const t = new Date(); t.setDate(t.getDate()-o); return t.toISOString().slice(0,10); };
+      return [
+        { id:uid(), date:d(0), mood:'joy',  title:'일기장 완성!', body:'일기장 완성~~.', tags:['일상','설렘'], created:Date.now()-5e5 },
+        { id:uid(), date:d(1), mood:'calm', title:'퇴근길 산책', body:'간만에 날이 선선해서 한강까지 걸었다.', tags:['산책','힐링'], created:Date.now()-1e5 },
+        { id:uid(), date:d(3), mood:'down', title:'디버깅 지옥', body:'오류 하나에 하루를 통째로 날렸다. 원인은 결국 오타 하나…', tags:['회고','개발'], created:Date.now()-3e5 },
+      ];
+    }
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+    // ---------- Utils ----------
+    const $ = (s, r=document) => r.querySelector(s);
+    const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function fmtDate(iso) {
+      const dt = new Date(iso + 'T00:00:00'), days = ['일','월','화','수','목','금','토'];
+      return `${dt.getMonth()+1}월 ${dt.getDate()}일 (${days[dt.getDay()]})`;
+    }
+    let toastTimer;
+    function toast(msg) {
+      $('#toastMsg').textContent = msg;
+      const t = $('#toast'); t.classList.remove('hidden'); paintDoodles(t);
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
+    }
+
+    // ---------- Render ----------
+    function getVisible() {
+      const q = filters.q.trim().toLowerCase();
+      let list = diaries.filter(e => {
+        const matchMood = filters.mood === 'all' || e.mood === filters.mood;
+        const hay = (e.title + ' ' + e.body + ' ' + (e.tags||[]).join(' ')).toLowerCase();
+        return matchMood && (!q || hay.includes(q));
+      });
+      if (filters.sort === 'new')  list.sort((a,b) => b.date.localeCompare(a.date) || b.created - a.created);
+      if (filters.sort === 'old')  list.sort((a,b) => a.date.localeCompare(b.date) || a.created - b.created);
+      if (filters.sort === 'mood') list.sort((a,b) => MOODS.findIndex(m=>m.id===a.mood) - MOODS.findIndex(m=>m.id===b.mood));
+      return list;
+    }
+    function render() {
+      const list = getVisible(), feed = $('#feed'), empty = $('#emptyState');
+      $('#statsRow').innerHTML = `
+        <span>💛 총 <b class="text-blush-deep dark:text-blush">${diaries.length}</b>개의 이야기</span>
+        ${(filters.q || filters.mood!=='all') ? `<span class="text-sky-deep dark:text-sky">${list.length}개 살짝 보여줄게요</span>` : ''}`;
+      if (list.length === 0) {
+        feed.innerHTML = ''; empty.classList.remove('hidden');
+        const noData = diaries.length === 0;
+        $('#emptyTitle').textContent = noData ? '아직 텅 비었어요' : '조건에 맞는 일기가 없어요';
+        $('#emptyDesc').innerHTML = noData
+          ? '오른쪽 위 <b class="text-blush-deep">새 일기</b> 버튼으로 첫 페이지를 채워봐요!'
+          : '검색어나 감정 필터를 살짝 바꿔볼까요? 🔍';
+        $('#emptyCta').classList.toggle('hidden', !noData);
+      } else {
+        empty.classList.add('hidden');
+        feed.innerHTML = list.map((e,i) => cardHTML(e,i)).join('');
+      }
+      paintDoodles(); lucide.createIcons();
+    }
+    function cardHTML(e, i) {
+      const m = moodMap[e.mood] || moodMap.meh;
+      const tags = (e.tags||[]).filter(Boolean).map(t =>
+        `<span class="px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-ink/55 dark:text-cream/60 text-[13px] font-hand">#${esc(t)}</span>`
+      ).join('');
+      return `
+      <article data-card="${e.id}" class="group relative bg-white dark:bg-cocoa-soft rounded-[1.75rem] border-2 border-ink/25 dark:border-cocoa-line p-5 shadow-mong hover:shadow-pop hover:-translate-y-1.5 hover:${ROTS[i%ROTS.length]} transition-all duration-200 cursor-pointer">
+        <span class="absolute -top-2.5 left-6 w-14 h-5 rounded-full bg-butter/70 dark:bg-butter/30 border-2 border-ink/20 -rotate-3"></span>
+        <div class="flex items-center justify-between mb-3 relative">
+          <span class="inline-flex items-center gap-1.5 text-[15px] font-hand ${m.text} ${m.bg} px-3 py-1 rounded-full border-2 ${m.bd}/30">
+            <span class="text-base leading-none">${m.emoji}</span>${m.label}
+          </span>
+          <time class="text-[13px] font-hand text-ink/45 dark:text-cream/45">${fmtDate(e.date)}</time>
+        </div>
+        <h3 class="text-xl text-ink dark:text-cream mb-1.5 leading-snug">${esc(e.title)}</h3>
+        <p class="font-hand text-[16px] text-ink/70 dark:text-cream/70 leading-relaxed line-clamp-3 min-h-[4.2em]">${esc(e.body)}</p>
+        ${tags ? `<div class="flex flex-wrap gap-1.5 mt-3">${tags}</div>` : ''}
+        <div class="flex justify-end gap-1 mt-3 pt-3 border-t-2 border-dashed border-ink/15 dark:border-cocoa-line opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <button data-edit="${e.id}" class="w-9 h-9 grid place-items-center rounded-xl hover:bg-mint/30 text-ink/60 dark:text-cream/60 transition" title="고치기">
+            <i data-lucide="pencil" class="w-4 h-4 pointer-events-none"></i>
+          </button>
+          <button data-del="${e.id}" class="w-9 h-9 grid place-items-center rounded-xl hover:bg-blush/30 text-blush-deep transition" title="지우기">
+            <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+          </button>
+        </div>
+      </article>`;
+    }
+
+    // ---------- Detail (읽기 · 작성 페이지와 동일 톤) ----------
+    function navBtn(entry, dir) {
+      if (!entry) return `<div class="h-14 rounded-2xl border-2 border-dashed border-ink/15 dark:border-cocoa-line opacity-50 flex items-center justify-center text-[14px] text-ink/40 dark:text-cream/40">${dir<0?'맨 처음 일기예요 🐣':'마지막 일기예요 🌙'}</div>`;
+      const arrow = dir<0 ? '←' : '→';
+      const label = dir<0 ? '이전' : '다음';
+      const align = dir>0 ? 'flex-row-reverse text-right' : '';
+      const m = moodMap[entry.mood] || moodMap.meh;
+      return `<button data-nav="${entry.id}" class="h-14 px-3.5 rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/20 dark:border-cocoa-line hover:border-sky-deep hover:-translate-y-0.5 transition flex items-center gap-2 ${align} overflow-hidden">
+          <span class="text-xl shrink-0 text-sky-deep">${arrow}</span>
+          <span class="min-w-0">
+            <span class="block text-[12px] text-ink/45 dark:text-cream/45 leading-none">${label} ${m.emoji}</span>
+            <span class="block text-[15px] truncate mt-0.5">${esc(entry.title)}</span>
+          </span>
+        </button>`;
+    }
+    function openDetail(id) {
+      const e = diaries.find(x => x.id === id); if (!e) return;
+      detailId = id;
+      const m = moodMap[e.mood] || moodMap.meh;
+      const list = getVisible();
+      const idx = list.findIndex(x => x.id === id);
+      const prev = idx > 0 ? list[idx-1] : null;
+      const next = (idx > -1 && idx < list.length-1) ? list[idx+1] : null;
+      const pos = idx > -1 ? `${idx+1} / ${list.length}` : '';
+      const tags = (e.tags||[]).filter(Boolean).map(t =>
+        `<span class="px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-ink/60 dark:text-cream/60 text-[15px]">#${esc(t)}</span>`
+      ).join('');
+      $('#detailBody').innerHTML = `
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-cocoa-soft border-2 border-ink/20 dark:border-cocoa-line text-[15px] text-ink/60 dark:text-cream/60">📅 ${fmtDate(e.date)}</span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 ${m.bd}/40 ${m.bg} ${m.text} text-[15px]"><span class="text-base leading-none">${m.emoji}</span>${m.label}</span>
+          ${pos ? `<span class="ml-auto text-[13px] text-ink/40 dark:text-cream/40">${pos}</span>` : ''}
+        </div>
+        <h3 class="text-3xl text-ink dark:text-cream leading-snug">${esc(e.title)}</h3>
+        <div class="rounded-2xl bg-white dark:bg-cocoa-soft border-2 border-ink/15 dark:border-cocoa-line pt-3 pb-3 min-h-[9rem] overflow-hidden">
+          <p class="ruled whitespace-pre-wrap text-ink/80 dark:text-cream/80 pl-14 pr-5">${esc(e.body)}</p>
+        </div>
+        ${tags ? `<div class="flex flex-wrap gap-2">${tags}</div>` : ''}
+        <div class="grid grid-cols-2 gap-2 pt-3 border-t-2 border-dashed border-ink/15 dark:border-cocoa-line">
+          ${navBtn(prev, -1)}
+          ${navBtn(next, 1)}
+        </div>
+        <div class="flex gap-2">
+          <button data-detail-edit class="flex-1 h-12 rounded-2xl bg-mint text-ink text-lg font-round border-2 border-ink/70 shadow-mong hover:-translate-y-0.5 transition active:scale-95 inline-flex items-center justify-center gap-1.5"><i data-lucide="pencil" class="w-5 h-5"></i>수정하기</button>
+          <button data-detail-del class="h-12 px-5 rounded-2xl bg-blush-light dark:bg-blush/15 text-blush-deep text-lg font-round border-2 border-blush-deep/50 hover:-translate-y-0.5 transition active:scale-95 inline-flex items-center justify-center gap-1.5"><i data-lucide="trash-2" class="w-5 h-5"></i>삭제</button>
+        </div>`;
+      $('#detail').classList.remove('hidden'); document.body.classList.add('no-scroll');
+      $('#detail').scrollTop = 0;
+      paintDoodles($('#detail')); lucide.createIcons();
+    }
+    function closeDetail() { $('#detail').classList.add('hidden'); document.body.classList.remove('no-scroll'); }
+
+    // ---------- Mood builders ----------
+    function chipCls(active){ return active
+      ? 'bg-blush text-ink border-ink/60 shadow-mong'
+      : 'bg-white dark:bg-cocoa-soft border-ink/25 dark:border-cocoa-line hover:border-blush-deep hover:-translate-y-0.5'; }
+    function buildMoodChips() {
+      const wrap = $('#moodChips');
+      const all = `<button data-mood="all" class="chip px-4 h-10 rounded-full font-hand text-[16px] border-2 transition ${chipCls(filters.mood==='all')}">전체 🌈</button>`;
+      const rest = MOODS.map(m =>
+        `<button data-mood="${m.id}" class="chip px-4 h-10 rounded-full font-hand text-[16px] border-2 transition inline-flex items-center gap-1 ${chipCls(filters.mood===m.id)}">${m.emoji} ${m.label}</button>`
+      ).join('');
+      wrap.innerHTML = all + rest;
+    }
+    function buildMoodPicker() {
+      $('#fMoods').innerHTML = MOODS.map(m =>
+        `<button type="button" data-pick="${m.id}" class="pick flex flex-col items-center gap-0.5 py-1.5 rounded-xl border-2 transition ${selectedMood===m.id ? m.bd+' '+m.bg+' -translate-y-0.5 shadow-mong' : 'border-ink/15 dark:border-cocoa-line bg-white dark:bg-cocoa-soft hover:-translate-y-0.5'}">
+          <span class="text-lg leading-none">${m.emoji}</span>
+          <span class="text-[11px] ${selectedMood===m.id ? m.text : 'text-ink/40 dark:text-cream/40'}">${m.label}</span>
+        </button>`
+      ).join('');
+    }
+
+    // ---------- Modal ----------
+    function openModal(mode, id) {
+      const form = $('#entryForm'); form.reset();
+      if (mode === 'edit') {
+        const e = diaries.find(x => x.id === id); if (!e) return;
+        $('#modalTitle').innerHTML = `<span data-doodle="mini-bird" class="w-6 inline-block"></span>일기 고치기`;
+        $('#entryId').value = e.id; $('#fDate').value = e.date; $('#fTitle').value = e.title;
+        $('#fBody').value = e.body; $('#fTags').value = (e.tags||[]).join(', '); selectedMood = e.mood;
+      } else {
+        $('#modalTitle').innerHTML = `<span data-doodle="mini-bird" class="w-6 inline-block"></span>새 일기`;
+        $('#entryId').value = ''; $('#fDate').value = new Date().toISOString().slice(0,10); selectedMood = 'calm';
+      }
+      buildMoodPicker();
+      $('#modal').classList.remove('hidden'); document.body.classList.add('no-scroll');
+      paintDoodles($('#modal')); lucide.createIcons();
+      setTimeout(() => $('#fTitle').focus(), 50);
+    }
+    function closeModal() { $('#modal').classList.add('hidden'); document.body.classList.remove('no-scroll'); }
+    function submitEntry(ev) {
+      ev.preventDefault();
+      const id = $('#entryId').value;
+      const data = {
+        date: $('#fDate').value, mood: selectedMood,
+        title: $('#fTitle').value.trim(), body: $('#fBody').value.trim(),
+        tags: $('#fTags').value.split(',').map(t => t.trim()).filter(Boolean).slice(0,6),
+      };
+      if (!data.title || !data.body || !data.date) return;
+      if (id) {
+        const idx = diaries.findIndex(x => x.id === id);
+        if (idx > -1) diaries[idx] = { ...diaries[idx], ...data };
+        toast('예쁘게 고쳤어요!');
+      } else {
+        diaries.unshift({ id: uid(), created: Date.now(), ...data });
+        toast('일기를 콕 저장했어요!');
+      }
+      save(); closeModal(); render();
+    }
+
+    // ---------- Delete ----------
+    function askDelete(id) { pendingDelete = id; $('#confirm').classList.remove('hidden'); document.body.classList.add('no-scroll'); paintDoodles($('#confirm')); lucide.createIcons(); }
+    function closeConfirm() { pendingDelete = null; $('#confirm').classList.add('hidden'); document.body.classList.remove('no-scroll'); }
+    function doDelete() {
+      if (pendingDelete) { diaries = diaries.filter(x => x.id !== pendingDelete); save(); toast('안녕히… 지웠어요'); render(); }
+      closeConfirm();
+    }
+
+    // ---------- Theme ----------
+    function applyTheme(t) { document.documentElement.classList.toggle('dark', t === 'dark'); localStorage.setItem(THEME_KEY, t); }
+    function toggleTheme() { applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'); }
+
+    // ---------- Events ----------
+    $('#newBtn').addEventListener('click', () => openModal('new'));
+    $('#emptyCta').addEventListener('click', () => openModal('new'));
+    $('#themeBtn').addEventListener('click', toggleTheme);
+    $('#entryForm').addEventListener('submit', submitEntry);
+    $('#confirmOk').addEventListener('click', doDelete);
+    $('#confirmCancel').addEventListener('click', closeConfirm);
+    $('#searchInput').addEventListener('input', (e) => { filters.q = e.target.value; render(); });
+    $('#sortSelect').addEventListener('change', (e) => { filters.sort = e.target.value; render(); });
+    $('#moodChips').addEventListener('click', (e) => { const b = e.target.closest('[data-mood]'); if (!b) return; filters.mood = b.dataset.mood; buildMoodChips(); render(); });
+    $('#fMoods').addEventListener('click', (e) => { const b = e.target.closest('[data-pick]'); if (!b) return; selectedMood = b.dataset.pick; buildMoodPicker(); });
+    $('#feed').addEventListener('click', (e) => {
+      const ed = e.target.closest('[data-edit]'), dl = e.target.closest('[data-del]');
+      if (ed) { openModal('edit', ed.dataset.edit); return; }
+      if (dl) { askDelete(dl.dataset.del); return; }
+      const card = e.target.closest('[data-card]');
+      if (card) openDetail(card.dataset.card);
+    });
+    $('#modal').addEventListener('click', (e) => { if (e.target.closest('.modal-close') || e.target.classList.contains('modal-backdrop')) closeModal(); });
+    $('#confirm').addEventListener('click', (e) => { if (e.target.classList.contains('confirm-backdrop')) closeConfirm(); });
+    $('#detail').addEventListener('click', (e) => {
+      if (e.target.closest('.detail-close') || e.target.classList.contains('detail-backdrop')) { closeDetail(); return; }
+      const nav = e.target.closest('[data-nav]');
+      if (nav) { openDetail(nav.dataset.nav); return; }
+      if (e.target.closest('[data-detail-edit]')) { const id = detailId; closeDetail(); openModal('edit', id); return; }
+      if (e.target.closest('[data-detail-del]')) { const id = detailId; closeDetail(); askDelete(id); }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!$('#confirm').classList.contains('hidden')) closeConfirm();
+        else if (!$('#modal').classList.contains('hidden')) closeModal();
+        else if (!$('#detail').classList.contains('hidden')) closeDetail();
+        return;
+      }
+      // 상세가 열려 있고 편집/삭제 모달이 없을 때만 ← → 로 일기 넘기기
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+          && !$('#detail').classList.contains('hidden')
+          && $('#modal').classList.contains('hidden')
+          && $('#confirm').classList.contains('hidden')) {
+        const list = getVisible();
+        const idx = list.findIndex(x => x.id === detailId);
+        if (idx < 0) return;
+        const target = e.key === 'ArrowLeft' ? list[idx-1] : list[idx+1];
+        if (target) openDetail(target.id);
+      }
+    });
+
+    // ---------- Init ----------
+    applyTheme(localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+    buildMoodChips(); render(); paintDoodles(); lucide.createIcons();
+  })();
+  </script>
+</body>
+</html>
